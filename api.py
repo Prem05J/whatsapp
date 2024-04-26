@@ -4,11 +4,11 @@ import os
 import openai
 import custom_chatgpt
 from langdetect import detect
-
+import os
 app = Flask(__name__)
 
 # Configure your OpenAI API key
-openai.api_key = "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" 
+openai.api_key = os.getenv('OPENAI_API_KEY')
 MYTOKEN = "SIVRA"  
 TOKEN = "EAAT4CLfbRNQBO7kEZA2HrmV6OK5eKMIjAaFY0KCa6Ud8xEis9ZBSVf9ZBUSwOl7ZBn2X0dbMD8zkH6yaNF0vAGwYgiZBe3QmSwdUnyTBxVrCUypybddhNK4ZBoUI94PSftSUjvDd9xZBprUFJAlk9Hi51TIrjHjkJQ9ZAZAVgU0ZAWhE71i7UPyoPCwvs4Vd9QZBbChwXnmHXct2mquRiN3SQZDZD"
 
