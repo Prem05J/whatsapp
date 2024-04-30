@@ -66,17 +66,12 @@ def webhook():
                 button_text = entry[0]['changes'][0]['value']['messages'][0]['type']
                 if button_text == "text":
                     msg_body = entry[0]['changes'][0]['value']['messages'][0]['text']['body']
-                    
-
-                
                 print("phone number:", phone_no_id)
                 print("from:", from_number)
                 # language = detect(response_text)
                 # print(response_text)
                 # print(language)
-                if False:
-                    return 
-                if check_user_existence(from_number) and button_text == "text":
+                if check_user_existence(from_number):
                     custom_ai = custom_ollama.OllamaHelper("./file.txt")
                     custom_ai.initialize()
                     response_text = custom_ai.rag_chain(msg_body)
@@ -118,7 +113,7 @@ def webhook():
                                 ]
                             }
                         }
-                        )
+                        ) 
                 elif button_text == "button":
                     button_language = entry[0]['changes'][0]['value']['messages'][0]["button"]["payload"]
                     response_text = {
@@ -145,7 +140,7 @@ def webhook():
                         }
                     )
                     insert_user(from_number)
-                elif not check_user_existence(from_number):
+                else:
                     response = requests.post(
                         f"https://graph.facebook.com/v18.0/{phone_no_id}/messages?access_token={TOKEN}",
                         json={
