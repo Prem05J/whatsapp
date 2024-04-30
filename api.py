@@ -74,6 +74,8 @@ def webhook():
                 # language = detect(response_text)
                 # print(response_text)
                 # print(language)
+                if False:
+                    return 
                 if check_user_existence(from_number) and button_text == "text":
                     custom_ai = custom_ollama.OllamaHelper("./file.txt")
                     custom_ai.initialize()
@@ -159,6 +161,7 @@ def webhook():
                             }
                         }
                     )
+                    return "", 200
                 if response.ok:
                     return "", 200
                 else:
