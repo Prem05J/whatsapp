@@ -6,12 +6,42 @@ import custom_chatgpt
 from langdetect import detect
 import os
 app = Flask(__name__)
+from flask_mysqldb import MySQL
+import custom_ollama
+
+app.config['MYSQL_HOST'] = '127.0.0.1'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = 'Premkumar@05'
+app.config['MYSQL_DB'] = 'whatsapp'
+
+
+mysql = MySQL(app)
 
 # Configure your OpenAI API key
 openai.api_key = os.getenv('OPENAI_API_KEY')
 MYTOKEN = "SIVRA"  
-TOKEN = "EAAT4CLfbRNQBO7kEZA2HrmV6OK5eKMIjAaFY0KCa6Ud8xEis9ZBSVf9ZBUSwOl7ZBn2X0dbMD8zkH6yaNF0vAGwYgiZBe3QmSwdUnyTBxVrCUypybddhNK4ZBoUI94PSftSUjvDd9xZBprUFJAlk9Hi51TIrjHjkJQ9ZAZAVgU0ZAWhE71i7UPyoPCwvs4Vd9QZBbChwXnmHXct2mquRiN3SQZDZD"
+TOKEN = "EAAT4CLfbRNQBOythLRG0RFVhTgXu6t0tu9qjZBij7tHvqELiKdLKWF89arpuJQDD8TnaG3S0ekvhuxRVCFnuvhZCO6QYMl96qZCjtA3468m3LwqCn6m88mLmUD1BnaK5FMtTZCoCIrmIFq5WztenoWIZAZC2BePZBpORctYZCHoZC1MnL8TP4P6AUQpzqCKepDkwBJRq2Y0ON6VcP5gcCnAZDZD"
 
+
+def insert_user(username):
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO users (user_name) VALUES (%s)", (username,))
+        mysql.connection.commit()
+        cur.close()
+        return "User inserted successfully"
+    except Exception as e:
+        return f"Error inserting user: {str(e)}"
+
+def check_user_existence(username):
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT COUNT(*) FROM users WHERE user_name = %s", (username,))
+        count = cur.fetchone()[0]
+        cur.close()
+        return count > 0
+    except Exception as e:
+        return f"Error checking user existence: {str(e)}"
 
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
@@ -29,57 +59,106 @@ def webhook():
         data = request.json
         if 'object' in data:
             entry = data.get('entry', [])
+            print(entry)
             if entry and entry[0].get('changes') and entry[0]['changes'][0].get('value', {}).get('messages'):
                 phone_no_id = entry[0]['changes'][0]['value']['metadata']['phone_number_id']
                 from_number = entry[0]['changes'][0]['value']['messages'][0]['from']
-                msg_body = entry[0]['changes'][0]['value']['messages'][0]['text']['body']
+                button_text = entry[0]['changes'][0]['value']['messages'][0]['type']
+                if button_text == "text":
+                    msg_body = entry[0]['changes'][0]['value']['messages'][0]['text']['body']
+                    
 
+                
                 print("phone number:", phone_no_id)
                 print("from:", from_number)
-                print("message body:", msg_body)
-                
-
-                # Generate response using ChatGPT
-                response_text = custom_chatgpt.process_message(msg_body)
-                language = detect(response_text)
-                print(response_text)
-                print(language)
-                # Send the response back
-                response = requests.post(
-                    f"https://graph.facebook.com/v13.0/{phone_no_id}/messages?access_token={TOKEN}",
-                    json={
-                        "messaging_product": "whatsapp",
-                        "to": from_number,
-                        "text": {"body": response_text},
-                        "language": language
-                    }
-                )
-                # response = requests.post(
-                #     f"https://graph.facebook.com/v18.0/{phone_no_id}/messages?access_token={TOKEN}",
-                #     json={
-                #         "messaging_product": "whatsapp",
-                #         "recipient_type": "individual",
-                #         "to": from_number,
-                #         "type": "template",
-                #         "template": {
-                #             "name": "language",
-                #             "language": {
-                #                 "code": language
-                #             }
-                #         },
-                #         "components": 
-                #             {
-                #                 "type": "body",
-                #                 "parameters": [
-                #                     {
-                #                         "type": "text",
-                #                         "text": response_text
-                #                     }
-                #                 ]
-                #             }
-                #         }
-                #     )
-
+                # language = detect(response_text)
+                # print(response_text)
+                # print(language)
+                if check_user_existence(from_number) and button_text == "text":
+                    custom_ai = custom_ollama.OllamaHelper("./file.txt")
+                    custom_ai.initialize()
+                    response_text = custom_ai.rag_chain(msg_body)
+                    print(response_text)
+                    # Send the response back
+                    response = requests.post(
+                        f"https://graph.facebook.com/v18.0/{phone_no_id}/messages?access_token={TOKEN}",
+                        json={
+                            "messaging_product": "whatsapp",
+                            "recipient_type": "individual",
+                            "to": from_number,
+                            "type": "template",
+                            "template": {
+                                "name": "image_",
+                                "language": {
+                                    "code": "en_GB"
+                                },
+                                "components": [
+                                    {
+                                        "type": "header",
+                                        "parameters": [
+                                            {
+                                                "type": "image",
+                                                "image": {
+                                                    "link": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/71-715457_bjp-logo-hd-image-co.jpg/1280px-71-715457_bjp-logo-hd-image-co.jpg"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "body",
+                                        "parameters": [
+                                            {
+                                                "type": "text",
+                                                "text": response_text
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                        )
+                elif button_text == "button":
+                    button_language = entry[0]['changes'][0]['value']['messages'][0]["button"]["payload"]
+                    response_text = {
+                            "Telugu": "కొనసాగు",
+                            "Hindi": "जारी रखें",
+                            "Kannada": "ಮುಂದುವರೆಸು",
+                            "English" : "Continue"
+                        }
+                    language = {
+                            "Telugu": "te",
+                            "Hindi": "hi",
+                            "Kannada": "kn",
+                            "English" : "en"
+                        }
+                    response_data = response_text[button_language]
+                    lang = language[button_language]
+                    response = requests.post(
+                        f"https://graph.facebook.com/v18.0/{phone_no_id}/messages?access_token={TOKEN}",
+                        json={
+                            "messaging_product": "whatsapp",
+                            "to": from_number,
+                            "text": {"body": response_data},
+                            "language": lang
+                        }
+                    )
+                    insert_user(from_number)
+                elif not check_user_existence(from_number):
+                    response = requests.post(
+                        f"https://graph.facebook.com/v18.0/{phone_no_id}/messages?access_token={TOKEN}",
+                        json={
+                            "messaging_product": "whatsapp",
+                            "recipient_type": "individual",
+                            "to": from_number,
+                            "type": "template",
+                            "template": {
+                                "name": "language_preferrence",
+                                "language": {
+                                    "code": "en_GB"
+                                }
+                            }
+                        }
+                    )
                 if response.ok:
                     return "", 200
                 else:
@@ -110,7 +189,6 @@ def index():
 
 if __name__ == '__main__':
     app.run(port=int(os.getenv("PORT", 80)))
-
 
 
 
